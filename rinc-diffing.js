@@ -41,19 +41,30 @@ async function queryConfig({
     return rows[0].toJSON()
 }
 
+function isWildcardPath(path) {
+    // the path it contains /* or /: or includes query params
+    return (
+      /\/\*/g.test(path) || /\/:/g.test(path) || containsQueryParams(path)
+    )
+  }
+
+function containsQueryParams(path) {
+return /\S+\?\S+/g.test(path)
+}
+
 async function queryRoutes({
     database, 
     config
 }) {
-    const { activeBuildId, activeVersionId, domain } = config
+    const { activeBuildId, activeVersionId } = config
     let query
 
     if (activeVersionId) {
-        console.log(`querying for RINC routes on ${domain}`)
+        console.log(`querying for RINC routes for version Id ${activeVersionId}`)
 
         query = {
             sql: `
-            SELECT path FROM Routes 
+            SELECT path FROM Routes@{FORCE_INDEX=RoutesBySiteInstanceVersionPathIgnoreCase}
             WHERE versionId = @activeVersionId
             `,
             params: {
@@ -61,7 +72,7 @@ async function queryRoutes({
             }
         }
     } else {
-        console.log(`querying for non-RINC routes on ${domain}`)
+        console.log(`querying for non-RINC routes for build Id ${activeBuildId}`)
 
         query = {
             sql: `
@@ -84,8 +95,10 @@ async function getDiff({ database, rincDomain, nonRincDomain, environment }) {
 
     const nonRincRoutes = await queryRoutes({database, config: nonRincConfig})
     const rincRoutes = await queryRoutes({database, config: rincConfig})
+
+    const filteredNonRincRoutes = nonRincRoutes.filter(route => !isWildcardPath(route.path))
     
-    const difference = diff(nonRincRoutes, rincRoutes)
+    const difference = diff(filteredNonRincRoutes, rincRoutes)
 
     console.log(`Showing diff for ${environment} environment`)
     console.log(difference)
