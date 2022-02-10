@@ -17,12 +17,12 @@ const ArticlePreview = ({ posts }) => {
           return (
             <li key={post.slug}>
               <Link to={`/blog/${post.slug}`} className={styles.link}>
-                <GatsbyImage alt="" image={post.heroImage.gatsbyImageData} />
+                <GatsbyImage alt="" image={post.heroImage ? post.heroImage.gatsbyImageData : ""} />
                 <h2 className={styles.title}>{post.title}</h2>
               </Link>
               <div
                 dangerouslySetInnerHTML={{
-                  __html: post.description.childMarkdownRemark.html,
+                  __html: post.description?.childMarkdownRemark.html,
                 }}
               />
               <div className={styles.meta}>
