@@ -29,8 +29,7 @@ const rincProdDomain = `contentfulblogrincdifftest.gatsbyjs.io` //0bc0fc88-de86-
 const nonRincProdDomain = `contentfulblogrincdifftestnon.gatsbyjs.io` // aa3230ac-a142-48de-96ae-0f18f6baeaf2
 
 async function setupSpace() {
-  const accessToken = "CFPAT-71mwcgOj3KUHhjxCiA46Uq4ayHO9xqawutmHrxGxJ1I"
-  console.log(accessToken)
+  const accessToken = process.env.CONTENTFUL_PERSONAL_TOKEN
   const spaceId = process.env.CONTENTFUL_SPACE_ID
 
   const client = contentful.createClient({accessToken})
@@ -61,9 +60,7 @@ async function createEntry(environment, entryId) {
   await entry.publish()
 }
 
-async function addInitialContentfulData() {
-  const space = await setupSpace()
-
+async function addInitialContentfulData(space) {
   console.log(`add 100 blog post entries`)
 
   const environment = await space.getEnvironment(`master`)
@@ -77,8 +74,7 @@ async function addInitialContentfulData() {
   )
 }
 
-async function publishChanges() {  
-  const space = await setupSpace()
+async function publishChanges(space) {  
   const entryId = _.random(0, 99, false)
   console.log({ entryId })
   const environment = await space.getEnvironment(`master`)
@@ -139,12 +135,11 @@ async function queryConfig({
     return rows[0].toJSON()
 }
 
-function filterNonRincRoutes(routes) {
-    const filteredNonRincRoutes = routes.filter(route => {
-        return !(isWildcardPath(route.path) && endsWithIndexHtml(route.path)) || !isPluginPath(route.path) || !isAppPath(path)
+function filterRoutes(routes) {
+    return routes.filter(route => {
+        const path = route[0].value
+        return !(isWildcardPath(path) && endsWithIndexHtml(path)) && !isPluginPath(path) && !endsWithJs(path)
     })
-
-    return filteredNonRincRoutes
 }
 
 function isWildcardPath(path) {
@@ -162,13 +157,13 @@ function endsWithIndexHtml(path) {
     return path.endsWith(`.index.html`)
 }
 
+function endsWithJs(path) {
+    return path.endsWith(`.js`) || path.endsWith(`.js.map`)
+}
+
 function isPluginPath(path) {
     const pluginPaths = ["/_functions.json", "/_gatsby-config.json", "/_headers.json", "/_redirects.json"]
     return pluginPaths.includes(path)
-}
-
-function isAppPath(path) {
-    return path.startsWith(`/app-`)
 }
 
 async function queryRoutes({
@@ -220,8 +215,8 @@ async function getDiff({ database, rincDomain, nonRincDomain, environment }) {
     const nonRincRoutes = await queryRoutes({database, config: nonRincConfig})
     const rincRoutes = await queryRoutes({database, config: rincConfig})
 
-    const filteredNonRincRoutes = filterNonRincRoutes(nonRincRoutes)
-    const filteredRincRoutes = rincRoutes.filter(route => !isAppPath(route.path))
+    const filteredNonRincRoutes = filterRoutes(nonRincRoutes)
+    const filteredRincRoutes = filterRoutes(rincRoutes)
     
     const options = {
         aAnnotation: `Non RINC`,
@@ -238,37 +233,43 @@ async function getDiff({ database, rincDomain, nonRincDomain, environment }) {
 }
 
 async function main() {
-    if (process.env.SETUP_CONTENTFUL) {
-        addInitialContentfulData()
+    const command = process.argv[2]
+    const space = await setupSpace()
+    
+    if (command === `setup`) {
+        console.log(`Setting up Contenful...`)
+        addInitialContentfulData(space)
     }
 
-    if (process.env.UPDATE_CONTENTFUL) {
-        await publishChange()
-        await buildFinished()
+    if (command == `increment`) {
+        console.log(`Updating source data in Contentful...`)
+        await publishChanges(space)
     }
 
-    if (rincLocalDomain && nonRincLocalDomain) {
-        getDiff({ 
-            database: localDatabase, 
-            rincDomain: rincLocalDomain, 
-            nonRincDomain: nonRincLocalDomain, 
-            environment: `local`
+    if (command == `diff`) {
+        if (rincLocalDomain && nonRincLocalDomain) {
+            getDiff({ 
+                database: localDatabase, 
+                rincDomain: rincLocalDomain, 
+                nonRincDomain: nonRincLocalDomain, 
+                environment: `local`
+            })
+        }
+    
+        getDiff({
+            database: stagingDatabase,
+            rincDomain: rincStagingDomain,
+            nonRincDomain: nonRincStagingDomain, 
+            environment: `staging`
         })
-    }
-
-    getDiff({
-        database: stagingDatabase,
-        rincDomain: rincStagingDomain,
-        nonRincDomain: nonRincStagingDomain, 
-        environment: `staging`
-    })
-
-    getDiff({
-        database: prodDatabase, 
-        rincDomain: rincProdDomain,
-        nonRincDomain: nonRincProdDomain,
-        environment: `production`
-    })
+    
+        getDiff({
+            database: prodDatabase, 
+            rincDomain: rincProdDomain,
+            nonRincDomain: nonRincProdDomain,
+            environment: `production`
+        })
+    } 
 }
 
 main()
