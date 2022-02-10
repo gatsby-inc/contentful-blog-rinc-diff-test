@@ -102,12 +102,14 @@ async function publishChanges(space) {
     let deleteEntry = await environment.getEntry(deleteId)
     deleteEntry = await deleteEntry.unpublish()
     await deleteEntry.delete()
+    console.log(`post deleted`)
 
     await createEntry(environment, createId)
     fs.writeFileSync(
     toDeleteCreatePath,
     JSON.stringify({ deleteId: createId, createId: deleteId })
     )
+    console.log(`post created`)
   } else {
     await createEntry(environment, `100`)
     fs.writeFileSync(
@@ -135,11 +137,18 @@ async function queryConfig({
     return rows[0].toJSON()
 }
 
-function filterRoutes(routes) {
-    return routes.filter(route => {
-        const path = route[0].value
-        return !(isWildcardPath(path) && endsWithIndexHtml(path)) && !isPluginPath(path) && !endsWithJs(path)
-    })
+function filterRoutes(routes, noManifests) {
+    if (noManifests) {
+        return routes.filter(route => {
+            const path = route[0].value
+            return !(isWildcardPath(path) && endsWithIndexHtml(path)) && !isPluginPath(path) && !isJsFile(path) && !isNodeManifest(path)
+        })
+    } else {
+        return routes.filter(route => {
+            const path = route[0].value
+            return !(isWildcardPath(path) && endsWithIndexHtml(path)) && !isPluginPath(path) && !isJsFile(path)
+        })
+    }  
 }
 
 function isWildcardPath(path) {
@@ -157,13 +166,17 @@ function endsWithIndexHtml(path) {
     return path.endsWith(`.index.html`)
 }
 
-function endsWithJs(path) {
-    return path.endsWith(`.js`) || path.endsWith(`.js.map`)
+function isJsFile(path) {
+    return path.endsWith(`.js`) || path.endsWith(`.js.map`) || path.includes(`js.LICENSE.txt`)
 }
 
 function isPluginPath(path) {
     const pluginPaths = ["/_functions.json", "/_gatsby-config.json", "/_headers.json", "/_redirects.json"]
     return pluginPaths.includes(path)
+}
+
+function isNodeManifest(path) {
+    return path.includes(`__node-manifests`)
 }
 
 async function queryRoutes({
@@ -208,15 +221,15 @@ async function queryRoutes({
     return rows
 }
 
-async function getDiff({ database, rincDomain, nonRincDomain, environment }) {
+async function getDiff({ database, rincDomain, nonRincDomain, environment, noManifests=false }) {
     const nonRincConfig = await queryConfig({database, domain: nonRincDomain})
     const rincConfig = await queryConfig({database, domain: rincDomain})
 
     const nonRincRoutes = await queryRoutes({database, config: nonRincConfig})
     const rincRoutes = await queryRoutes({database, config: rincConfig})
 
-    const filteredNonRincRoutes = filterRoutes(nonRincRoutes)
-    const filteredRincRoutes = filterRoutes(rincRoutes)
+    const filteredNonRincRoutes = filterRoutes(nonRincRoutes, noManifests)
+    const filteredRincRoutes = filterRoutes(rincRoutes, noManifests)
     
     const options = {
         aAnnotation: `Non RINC`,
@@ -252,7 +265,7 @@ async function main() {
                 database: localDatabase, 
                 rincDomain: rincLocalDomain, 
                 nonRincDomain: nonRincLocalDomain, 
-                environment: `local`
+                environment: `local`, 
             })
         }
     
@@ -268,6 +281,34 @@ async function main() {
             rincDomain: rincProdDomain,
             nonRincDomain: nonRincProdDomain,
             environment: `production`
+        })
+    } 
+
+    if (command == `diff2`) { //without node manifests 
+        if (rincLocalDomain && nonRincLocalDomain) {
+            getDiff({ 
+                database: localDatabase, 
+                rincDomain: rincLocalDomain, 
+                nonRincDomain: nonRincLocalDomain, 
+                environment: `local`,
+                noManifests: true 
+            })
+        }
+    
+        getDiff({
+            database: stagingDatabase,
+            rincDomain: rincStagingDomain,
+            nonRincDomain: nonRincStagingDomain, 
+            environment: `staging`,
+            noManifests: true 
+        })
+    
+        getDiff({
+            database: prodDatabase, 
+            rincDomain: rincProdDomain,
+            nonRincDomain: nonRincProdDomain,
+            environment: `production`,
+            noManifests: true 
         })
     } 
 }
