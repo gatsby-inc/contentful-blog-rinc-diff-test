@@ -181,12 +181,13 @@ function isNodeManifest(path) {
 
 async function queryRoutes({
     database, 
-    config
+    config,
+    isRinc
 }) {
     const { activeBuildId, activeVersionId, siteInstanceId } = config
     let query
 
-    if (activeVersionId) {
+    if (isRinc) {
         console.log(`querying for RINC routes for version Id ${activeVersionId}`)
 
         query = {
@@ -225,8 +226,8 @@ async function getDiff({ database, rincDomain, nonRincDomain, environment, noMan
     const nonRincConfig = await queryConfig({database, domain: nonRincDomain})
     const rincConfig = await queryConfig({database, domain: rincDomain})
 
-    const nonRincRoutes = await queryRoutes({database, config: nonRincConfig})
-    const rincRoutes = await queryRoutes({database, config: rincConfig})
+    const nonRincRoutes = await queryRoutes({database, config: nonRincConfig, isRinc: false})
+    const rincRoutes = await queryRoutes({database, config: rincConfig, isRinc: true})
 
     const filteredNonRincRoutes = filterRoutes(nonRincRoutes, noManifests)
     const filteredRincRoutes = filterRoutes(rincRoutes, noManifests)
@@ -247,6 +248,8 @@ async function getDiff({ database, rincDomain, nonRincDomain, environment, noMan
 
 async function main() {
     const command = process.argv[2]
+    const option = process.argv[3]
+
     const space = await setupSpace()
     
     if (command === `setup`) {
@@ -260,15 +263,20 @@ async function main() {
     }
 
     if (command == `diff`) {
-        if (rincLocalDomain && nonRincLocalDomain) {
-            getDiff({ 
-                database: localDatabase, 
-                rincDomain: rincLocalDomain, 
-                nonRincDomain: nonRincLocalDomain, 
-                environment: `local`, 
-            })
+        if (option === `local`) {
+            // run local with SPANNER_EMULATOR_HOST=localhost:9010
+            if (rincLocalDomain && nonRincLocalDomain) {
+                getDiff({ 
+                    database: localDatabase, 
+                    rincDomain: rincLocalDomain, 
+                    nonRincDomain: nonRincLocalDomain, 
+                    environment: `local`, 
+                })
+            } else {
+                console.log(`provide local domains as env variables`)
+            }
         }
-    
+        
         getDiff({
             database: stagingDatabase,
             rincDomain: rincStagingDomain,
@@ -285,14 +293,19 @@ async function main() {
     } 
 
     if (command == `diff2`) { //without node manifests 
-        if (rincLocalDomain && nonRincLocalDomain) {
-            getDiff({ 
-                database: localDatabase, 
-                rincDomain: rincLocalDomain, 
-                nonRincDomain: nonRincLocalDomain, 
-                environment: `local`,
-                noManifests: true 
-            })
+        if (option === `local`) {
+            if (rincLocalDomain && nonRincLocalDomain) {
+                // run local with SPANNER_EMULATOR_HOST=localhost:9010
+                getDiff({ 
+                    database: localDatabase, 
+                    rincDomain: rincLocalDomain, 
+                    nonRincDomain: nonRincLocalDomain, 
+                    environment: `local`,
+                    noManifests: true 
+                })
+            } else {
+                console.log(`provide local domains as env variables`)
+            }
         }
     
         getDiff({
