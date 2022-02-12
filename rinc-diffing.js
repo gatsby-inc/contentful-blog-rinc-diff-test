@@ -275,21 +275,21 @@ async function main() {
             } else {
                 console.log(`provide local domains as env variables`)
             }
-        }
+        } else {
+            getDiff({
+                database: stagingDatabase,
+                rincDomain: rincStagingDomain,
+                nonRincDomain: nonRincStagingDomain, 
+                environment: `staging`
+            })
         
-        getDiff({
-            database: stagingDatabase,
-            rincDomain: rincStagingDomain,
-            nonRincDomain: nonRincStagingDomain, 
-            environment: `staging`
-        })
-    
-        getDiff({
-            database: prodDatabase, 
-            rincDomain: rincProdDomain,
-            nonRincDomain: nonRincProdDomain,
-            environment: `production`
-        })
+            getDiff({
+                database: prodDatabase, 
+                rincDomain: rincProdDomain,
+                nonRincDomain: nonRincProdDomain,
+                environment: `production`
+            })
+        }
     } 
 
     if (command == `diff2`) { //without node manifests 
@@ -306,23 +306,23 @@ async function main() {
             } else {
                 console.log(`provide local domains as env variables`)
             }
+        } else {
+            getDiff({
+                database: stagingDatabase,
+                rincDomain: rincStagingDomain,
+                nonRincDomain: nonRincStagingDomain, 
+                environment: `staging`,
+                noManifests: true 
+            })
+        
+            getDiff({
+                database: prodDatabase, 
+                rincDomain: rincProdDomain,
+                nonRincDomain: nonRincProdDomain,
+                environment: `production`,
+                noManifests: true 
+            })
         }
-    
-        getDiff({
-            database: stagingDatabase,
-            rincDomain: rincStagingDomain,
-            nonRincDomain: nonRincStagingDomain, 
-            environment: `staging`,
-            noManifests: true 
-        })
-    
-        getDiff({
-            database: prodDatabase, 
-            rincDomain: rincProdDomain,
-            nonRincDomain: nonRincProdDomain,
-            environment: `production`,
-            noManifests: true 
-        })
     } 
 }
 
