@@ -192,7 +192,8 @@ async function queryRoutes({
 
         query = {
             sql: `
-            SELECT path FROM Routes@{FORCE_INDEX=RoutesBySiteInstanceVersionPathIgnoreCase}
+            SELECT path, functionId, ssrId, ssrType, toPath, ignoreCase, status, headers
+            FROM Routes@{FORCE_INDEX=RoutesBySiteInstanceVersionPathIgnoreCase}
             WHERE 
             siteInstanceId = @siteInstanceId
             AND versionId = @activeVersionId
@@ -208,7 +209,8 @@ async function queryRoutes({
 
         query = {
             sql: `
-            SELECT path FROM Routes 
+            SELECT path, functionId, ssrId, ssrType, toPath, ignoreCase, status, headers 
+            FROM Routes 
             WHERE buildId = @activeBuildId
             ORDER BY path
             `,
@@ -223,6 +225,9 @@ async function queryRoutes({
 }
 
 async function getDiff({ database, rincDomain, nonRincDomain, environment, noManifests=false }) {
+    const nonRincPath = path.join(__dirname, `non-rinc.json`)
+    const rincPath = path.join(__dirname, `rinc.json`)
+
     const nonRincConfig = await queryConfig({database, domain: nonRincDomain})
     const rincConfig = await queryConfig({database, domain: rincDomain})
 
@@ -244,6 +249,9 @@ async function getDiff({ database, rincDomain, nonRincDomain, environment, noMan
 
     console.log(`Showing diff for ${environment} environment`)
     console.log(difference)
+
+    fs.writeFileSync(nonRincPath, JSON.stringify(filteredNonRincRoutes))
+    fs.writeFileSync(rincPath, JSON.stringify(filteredRincRoutes))
 }
 
 async function main() {
