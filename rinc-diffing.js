@@ -190,34 +190,35 @@ async function queryRoutes({
     if (isRinc) {
         console.log(`querying for RINC routes for version Id ${activeVersionId}`)
 
-        // select r.path, r.versionId, r.functionId
-        // from Routes@{FORCE_INDEX=RoutesBySiteInstanceVersionPathIgnoreCase} as r
-        // inner join 
-        // (
-        // SELECT path, min(versionId) as min_versionid
-        //         FROM Routes@{FORCE_INDEX=RoutesBySiteInstanceVersionPathIgnoreCase}
-        //         WHERE 
-        //         siteInstanceId = "01dd2e7a-0a7c-449d-a540-f4d51a92a6cd_production" AND 
-        //         versionId <= "01FVX1CEKNSY9EBBN9YASSQSPW"
-        //         group by  path
-        // ) as r2 
+        // SELECT r.path, r.functionId, r.ssrId, r.ssrType, r.toPath, r.ignoreCase, r.status, r.headers
+        // FROM Routes@{FORCE_INDEX=RoutesBySiteInstanceVersionPathIgnoreCase} r
+        // inner join (
+        //   SELECT path, min(versionId) as min_versionid
+        //       FROM Routes@{FORCE_INDEX=RoutesBySiteInstanceVersionPathIgnoreCase}
+        //       WHERE 
+        //       siteInstanceId = @siteInstanceId AND 
+        //       versionId <= @activeVersionId
+        //       group by path
+        // ) r2 
         // on r.path = r2.path and r.versionId = r2.min_versionid
         // WHERE siteInstanceId = "01dd2e7a-0a7c-449d-a540-f4d51a92a6cd_production" 
+        // AND deleted is false
+        // ORDER BY path
 
         query = {
             sql: `
             SELECT r.path, r.functionId, r.ssrId, r.ssrType, r.toPath, r.ignoreCase, r.status, r.headers
             FROM Routes@{FORCE_INDEX=RoutesBySiteInstanceVersionPathIgnoreCase} r
             inner join (
-              SELECT path, min(versionId) as min_versionid
+              SELECT path, max(versionId) as max_versionid
                   FROM Routes@{FORCE_INDEX=RoutesBySiteInstanceVersionPathIgnoreCase}
                   WHERE 
                   siteInstanceId = @siteInstanceId AND 
                   versionId <= @activeVersionId
                   group by path
             ) r2 
-            on r.path = r2.path and r.versionId = r2.min_versionid
-            WHERE siteInstanceId = "01dd2e7a-0a7c-449d-a540-f4d51a92a6cd_production" 
+            on r.path = r2.path and r.versionId = r2.max_versionid
+            WHERE siteInstanceId = @siteInstanceId
             AND deleted is false
             ORDER BY path
             `,
