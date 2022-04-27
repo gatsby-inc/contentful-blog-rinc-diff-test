@@ -10,7 +10,7 @@
   "dependencies": {
     "@google-cloud/spanner": "^5.16.3",
     "contentful-management": "^8.1.0",
-    "gatsby": "^4.0.0",
+    "gatsby": "^4.14.0-next.1",
     "gatsby-plugin-gatsby-cloud": "^4.7.0",
     "gatsby-plugin-image": "^2.0.0",
     "gatsby-plugin-react-helmet": "^5.0.0",
@@ -21,6 +21,7 @@
     "gh-pages": "^3.1.0",
     "jest-diff": "^27.5.1",
     "lodash": "^4.17.21",
+    "node-fetch": "^2.6.7",
     "p-map": "^4.0.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
